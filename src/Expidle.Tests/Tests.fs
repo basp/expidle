@@ -16,6 +16,70 @@ let private posInf = BigFloat.Create(Double.PositiveInfinity, 0)
 let private nan = BigFloat.Create(Double.NaN, 0)
 
 [<Fact>]
+let ``Equals returns true for NaN`` () =
+    Assert.True(nan.Equals(nan))
+    // Sanity check to make sure the `=` operator behaves as expected.
+    Assert.True((nan = nan))
+        
+[<Fact>]
+let ``op_Equality returns false for NaNs`` () =
+    let a = BigFloat.Create(Double.NaN, 0)
+    let b = BigFloat.Create(Double.NaN, 0)
+    let r = BigFloat.op_Equality(a, b)
+    Assert.False(r)
+
+[<Fact>]
+let ``op_Inequality returns true for NaNs`` () =
+    let a = BigFloat.Create(Double.NaN, 0)
+    let b = BigFloat.Create(Double.NaN, 0)
+    let r = BigFloat.op_Inequality(a, b)
+    Assert.True(r)
+
+[<Fact>]
+let ``F# equality operator considers NaNs equal`` () =
+    let a = BigFloat.Create(Double.NaN, 0)
+    let b = BigFloat.Create(Double.NaN, 0)
+    let r = a = b
+    Assert.True(r)
+
+[<Fact>]
+let ``neagtive zero and zero have same hash codes`` () =
+    let a = BigFloat.Create(-0.0, 0)
+    let b = BigFloat.Create(0.0, 0)
+    let c = BigFloat.Create(1.0, 0)
+    Assert.Equal(hash a, hash b)
+    Assert.Equal(hash b, hash a)
+    // Sanity check to make sure hash codes differ when relevant.
+    Assert.NotEqual(hash a, hash c)
+    
+[<Fact>]
+let ``CompareTo treats NaNs as greatest and NaN compares equal to NaN`` () =
+    let a = BigFloat.Create(Double.NaN, 0)
+    let b = BigFloat.Create(Double.NaN, 0)
+    Assert.Equal(0, (a :> IComparable<BigFloat>).CompareTo(b))
+
+    let one = BigFloat.Create(1.0, 0)
+    Assert.True(((a :> IComparable<BigFloat>).CompareTo(one)) > 0)
+    Assert.True(((one :> IComparable<BigFloat>).CompareTo(a)) < 0)
+
+[<Fact>]
+let ``CompareTo treats -0.0 and +0.0 as equal`` () =
+    let pz = BigFloat.Create(0.0, 0)
+    let nz = BigFloat.Create(-0.0, 0)
+    Assert.Equal(0, (pz :> IComparable<BigFloat>).CompareTo(nz))
+    Assert.Equal(0, (nz :> IComparable<BigFloat>).CompareTo(pz))
+
+[<Fact>]
+let ``Ordering places NegInf lowest and PosInf above all finite`` () =
+    let negInf = BigFloat.Create(Double.NegativeInfinity, 0)
+    let posInf = BigFloat.Create(Double.PositiveInfinity, 0)
+    let finite = BigFloat.Create(9.0, 9)
+
+    Assert.True(((negInf :> IComparable<BigFloat>).CompareTo(finite)) < 0)
+    Assert.True(((finite :> IComparable<BigFloat>).CompareTo(posInf)) < 0)
+    Assert.True(((negInf :> IComparable<BigFloat>).CompareTo(posInf)) < 0)    
+    
+[<Fact>]
 let ``ofFloat 0.0 produces +0.0`` () =
     match BigFloat.ofFloat 0.0 with    
     | Finite (m, e) ->

@@ -5,19 +5,132 @@
 // inf / inf = NaN
 // finite / +/-0.0 = +/-inf (with sign rules)
 // finite / +/-inf = +/-0.0 (with sign rules)
-type [<Struct>] BigFloat =
+type [<Struct; CustomEquality; CustomComparison>] BigFloat =
     private
     | Finite of float * int
     | PosInf
     | NegInf
     | NaN
     
+    static member private BigFloatEquals (x: BigFloat, y: BigFloat) =
+        match x, y with
+        | NaN, NaN -> true
+        | PosInf, PosInf -> true
+        | NegInf, NegInf -> true
+        | Finite (xm, xe), Finite (ym, ye) ->
+            xm = ym && xe = ye
+        | _ -> false
+        
+    static member private BigFloatCompare (x: BigFloat, y: BigFloat) =
+        // Comparer notes:
+        // 
+        // # Less than zero
+        // This object precedes the object specified by the CompareTo method
+        // in the sort order.
+        //
+        // # Zero
+        // This current instance occurs in the same position in the sort
+        // order as the object specified by the CompareTo method argument.
+        //
+        // # Greater than zero
+        // This current instance follows the object specified by the
+        // CompareTo method argument in the sort order.
+        //
+        // # Intended sort order
+        // NegInf < Finite < PosInf < NaN.
+        //
+        let inline cmpi (a: int) (b: int) = compare a b
+        let inline cmpf (a: float) (b: float) = compare a b
+        match x, y with
+        // NaN compares equal to NaN (consistent with equality).
+        | NaN, NaN -> 0
+        // Total ordering: NaN sorts last.
+        | NaN, _ -> 1
+        | _, NaN -> -1
+        | NegInf, NegInf -> 0
+        | PosInf, PosInf -> 0
+        // Negative infinity first.
+        | NegInf, _ -> -1
+        | _, NegInf -> 1
+        // Positive infinity before NaN.
+        | PosInf, _ -> 1
+        | _, PosInf -> -1
+        // For finite numbers we need to make sure we deal with the
+        // signs properly so that negative values are sorted before
+        // positive values.
+        | Finite (xm, xe), Finite (ym, ye) ->
+            if xm = 0.0 && ym = 0.0 then 0
+            else
+                let xNeg = xm < 0.0
+                let yNeg = ym < 0.0
+                if xNeg <> yNeg then
+                    if yNeg then -1
+                    else 1
+                else
+                    // Both positive or both negative.
+                    // Compare exponent then mantissa. For negatives, the
+                    // ordering is reversed (e.g., -100 < -2). 
+                    let eCmp = cmpi xe ye
+                    if eCmp <> 0 then
+                        if xNeg then -eCmp
+                        else eCmp
+                    else
+                        let mCmp = cmpf xm ym
+                        if xNeg then -mCmp
+                        else mCmp
+
     override x.ToString() =
         match x with
         | Finite (m, e) -> $"%f{m} * 10^%d{e}"
         | PosInf -> "+∞"
         | NegInf -> "-∞"
         | NaN -> "NaN"
+        
+    interface System.IComparable with
+        member x.CompareTo obj =
+            match obj with
+            | null -> 1
+            | :? BigFloat as y -> BigFloat.BigFloatCompare(x, y)
+            | _ -> invalidArg "obj" "Object is not a BigFloat."
+        
+    interface System.IComparable<BigFloat> with
+        member x.CompareTo y =
+            BigFloat.BigFloatCompare(x, y)
+        
+    override x.Equals obj =
+        match obj with
+        | :? BigFloat as y -> BigFloat.BigFloatEquals(x, y)
+        | _ -> false
+        
+    interface System.IEquatable<BigFloat> with
+        member x.Equals y =
+            BigFloat.BigFloatEquals(x, y)
+        
+    // C# operator `==` : IEEE-ish behavior.
+    // NaN never equals anything, including itself.           
+    static member op_Equality(a: BigFloat, b: BigFloat) =
+        match a, b with
+        | NaN, _ -> false
+        | _, NaN -> false
+        | _ -> BigFloat.BigFloatEquals(a, b)
+        
+    static member op_Inequality(a: BigFloat, b: BigFloat) =
+        not (BigFloat.op_Equality(a, b))
+        
+    override x.GetHashCode() =
+        match x with
+        | NaN -> 0x7FC0DEAD
+        | PosInf -> 0x7F8AFAFA
+        | NegInf -> 0xFF8AFAFA
+        | Finite (m, e) ->
+            // Double semantics: (hash 0.0) = (hash -0.0).
+            // This should be the default CLR behavior, but we're making this
+            // absolutely clear with canonicalization.
+            let m' =
+                if m = 0.0 && System.Double.IsNegative m
+                then 0.0
+                else m
+            hash (m', e)
 
 module BigFloatUtils =
     open System
@@ -264,7 +377,7 @@ module BigFloat =
             | BigFloat.NegInf -> Some "NegInf"
             | BigFloat.NaN -> Some "NaN"
             | _ -> None
-        
+
 type BigFloat with
     static member Zero = BigFloat.zero
     static member NegZero = BigFloat.negZero
@@ -274,7 +387,7 @@ type BigFloat with
     static member OfFloat (x: float) =
         BigFloat.ofFloat x
     static member (+) (a, b) =
-        BigFloat.add a b
+        BigFloat.add a b        
     static member (-) (a, b) =
         BigFloat.sub a b
     static member (*) (a, b) =
