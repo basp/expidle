@@ -238,15 +238,63 @@ module BigFloat =
         | _ -> false
     
     let sign (x: BigFloat) =
+        // Sematics should be inline with C# double here.
         match x with
-        | BigFloat.NaN -> 0
+        | BigFloat.NaN -> raise (ArithmeticException "NaN has no sign.")
         | BigFloat.PosInf -> 1
         | BigFloat.NegInf -> -1
+        | BigFloat.Finite (m, _) when m = 0.0 -> 0
+        | BigFloat.Finite (m, _) when m = -0.0 -> 0
         | BigFloat.Finite (m, _) ->
             if m < 0.0
             then -1
             else 1
-    module Utils =
+    
+    let  isFinite (x: BigFloat) =
+        match x with
+        | Finite _ -> true
+        | _ -> false
+        
+    let  isNaN (x: BigFloat) =
+        match x with
+        | NaN -> true
+        | _ -> false
+        
+    let  isPosInf (x: BigFloat) =
+        match x with
+        | PosInf -> true
+        | _ -> false
+        
+    let  isNegInf (x: BigFloat) =
+        match x with
+        | NegInf -> true
+        | _ -> false
+        
+    let  isInf (x: BigFloat) =
+        match x with
+        | PosInf -> true
+        | NegInf -> true
+        | _ -> false
+        
+    let isPositive (x: BigFloat) =
+        match x with
+        | Finite (m, _) when m > 0.0 -> true
+        | PosInf -> true
+        | _ -> false
+        
+    let isNegative (x: BigFloat) =
+        match x with
+        | Finite (m, _) when m < 0.0 -> true
+        | NegInf -> true
+        | _ -> false
+        
+    let isNonNegative (x: BigFloat) =
+        match x with
+        | Finite (m, _) when m >= 0.0 -> true
+        | PosInf -> true
+        | _ -> false
+
+    module private FloatUtils =
         let isFiniteFloat (v: float) =
             not (Double.IsNaN v) && not (Double.IsInfinity v)
         
@@ -302,27 +350,27 @@ module BigFloat =
         match x with        
         | Finite (mantissa, _)
             when mantissa = 0.0 ->
-            Utils.zeroOf mantissa
+            FloatUtils.zeroOf mantissa
         | Finite (mantissa, _)
-            when Utils.isNegInfFloat mantissa ->
+            when FloatUtils.isNegInfFloat mantissa ->
             NegInf
         | Finite (mantissa, _)
-            when Utils.isPosInfFloat mantissa ->            
+            when FloatUtils.isPosInfFloat mantissa ->            
             PosInf
         | Finite (mantissa, _)
-            when Utils.isNaNFloat mantissa ->
+            when FloatUtils.isNaNFloat mantissa ->
             NaN
         | Finite (mantissa, exponent)
-            when (Utils.isFiniteFloat mantissa) ->
+            when (FloatUtils.isFiniteFloat mantissa) ->
             normalizeFinite (mantissa, exponent)
         | nonFinite -> nonFinite
 
     let init m e =
         match m with
-        | m when Utils.isNaNFloat m -> NaN
-        | m when Utils.isPosInfFloat m -> PosInf
-        | m when Utils.isNegInfFloat m -> NegInf
-        | m when m = 0.0 -> Utils.zeroOf m
+        | m when FloatUtils.isNaNFloat m -> NaN
+        | m when FloatUtils.isPosInfFloat m -> PosInf
+        | m when FloatUtils.isNegInfFloat m -> NegInf
+        | m when m = 0.0 -> FloatUtils.zeroOf m
         | _ -> Finite(m, e) |> normalize
         
     let ofFloat x = init x 0        

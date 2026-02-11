@@ -401,3 +401,73 @@ let ``Create normalizes subnormal values and stays finite`` () =
         Assert.True(e < -300)
     | _ ->
         failwithf $"Expected Finite, got %A{x}"
+        
+[<Fact>]
+let ``sign semantics`` () =
+    // Sign semantics aim to mirror `System.Double.Sign`.
+
+    let pz = BigFloat.Create(0.0, 0)
+    let nz = BigFloat.Create(-0.0, 0)
+    let pos = BigFloat.Create(1.0, 0)
+    let neg = BigFloat.Create(-1.0, 0)
+
+    // Both positive and negative zero have zero sign.
+    Assert.Equal(0, BigFloat.sign pz)
+    Assert.Equal(0, BigFloat.sign nz)
+    
+    // Positive finite numbers have positive sign.
+    Assert.Equal(1, BigFloat.sign pos)
+    
+    // Negative finite numbers have negative sign.
+    Assert.Equal(-1, BigFloat.sign neg)
+    
+    // Positive infinity has positive sign.
+    Assert.Equal(1, BigFloat.sign posInf)
+    
+    // Negative infinity has negative sign.
+    Assert.Equal(-1, BigFloat.sign negInf)
+
+    // Calling the `sign` function on NaN values throws.
+    Assert.Throws<ArithmeticException>(
+        fun () ->
+            BigFloat.sign nan |>
+            ignore)
+
+[<Fact>]
+let ``Predicates: isPositive and isNegative include infinities`` () =
+    let pz = BigFloat.Create(0.0, 0)
+    let pos = BigFloat.Create(1.0, 0)
+    let neg = BigFloat.Create(-1.0, 0)
+
+    Assert.True(BigFloat.isPositive pos)
+    Assert.True(BigFloat.isPositive posInf)
+    Assert.False(BigFloat.isPositive pz)
+    Assert.False(BigFloat.isPositive neg)
+    Assert.False(BigFloat.isPositive negInf)
+    Assert.False(BigFloat.isPositive nan)
+
+    Assert.True(BigFloat.isNegative neg)
+    Assert.True(BigFloat.isNegative negInf)
+    Assert.False(BigFloat.isNegative pz)
+    Assert.False(BigFloat.isNegative pos)
+    Assert.False(BigFloat.isNegative posInf)
+    Assert.False(BigFloat.isNegative nan)
+
+[<Fact>]
+let ``Predicates: isFinite/isInf/isNaN classify values consistently`` () =
+    let finite = BigFloat.Create(1.0, 0)
+
+    Assert.True(BigFloat.isFinite finite)
+    Assert.False(BigFloat.isFinite posInf)
+    Assert.False(BigFloat.isFinite negInf)
+    Assert.False(BigFloat.isFinite nan)
+
+    Assert.True(BigFloat.isInf posInf)
+    Assert.True(BigFloat.isInf negInf)
+    Assert.False(BigFloat.isInf finite)
+    Assert.False(BigFloat.isInf nan)
+
+    Assert.True(BigFloat.isNaN nan)
+    Assert.False(BigFloat.isNaN finite)
+    Assert.False(BigFloat.isNaN posInf)
+    Assert.False(BigFloat.isNaN negInf)        
