@@ -226,6 +226,7 @@ module BigFloatUtils =
 module BigFloat =
     open System
     
+    // Optimization suggestion for the future.
     //
     // // Precomputed powers of 10 for [-16..16].
     // let private pow10Table : float[] =
@@ -308,6 +309,11 @@ module BigFloat =
         | Finite (m, _) when m >= 0.0 -> true
         | PosInf -> true
         | _ -> false
+
+    let min a b =
+        if isNaN a || isNaN b
+        then NaN
+        elif (a :> IComparable<BigFloat>).CompareTo(b) <= 0 then a else b
 
     module private FloatUtils =
         let isFiniteFloat (v: float) =
@@ -481,6 +487,15 @@ type BigFloat with
     static member OfFloat (x: float) =
         BigFloat.ofFloat x
     
+    static member IsInfinite (x: BigFloat) =
+        BigFloat.isInf x
+                
+    static member IsNegativeInfinity (x: BigFloat) =
+        BigFloat.isNegInf x
+        
+    static member IsPositiveInfinity (x: BigFloat) =
+        BigFloat.isPosInf x
+                
     static member (+) (a, b) =
         BigFloat.add a b        
     
