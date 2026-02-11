@@ -2,7 +2,8 @@
 
 open Expidle
 
-let a = BigFloat.init 12 300
-let b = BigFloat.init 12 500
-let c = a + b
-printfn $"{c}"
+let a = BigFloat.ofFloat 2.0
+let b = BigFloat.ofFloat 3.0
+let c = BigFloat.add a b
+
+c.ToString()

@@ -226,6 +226,22 @@ module BigFloatUtils =
 module BigFloat =
     open System
     
+    //
+    // // Precomputed powers of 10 for [-16..16].
+    // let private pow10Table : float[] =
+    //     [|
+    //         1e-16; 1e-15; 1e-14; 1e-13; 1e-12; 1e-11; 1e-10; 1e-9;
+    //         1e-8;  1e-7;  1e-6;  1e-5;  1e-4;  1e-3;  1e-2;  1e-1;
+    //         1e0;
+    //         1e1;  1e2;  1e3;  1e4;  1e5;  1e6;  1e7;  1e8;
+    //         1e9;  1e10; 1e11; 1e12; 1e13; 1e14; 1e15; 1e16
+    //     |]
+    //
+    // // Fast integer-power-of-10 lookup for |d| ≤ 16.
+    // let inline pow10 (d: int) =
+    //     // Table is indexed from [-16..16] → shift by +16.
+    //     pow10Table[d + 16]
+    
     let zero = Finite(0.0, 0)
     
     let negZero = Finite(-0.0, 0)
@@ -238,13 +254,12 @@ module BigFloat =
         | _ -> false
     
     let sign (x: BigFloat) =
-        // Sematics should be inline with C# double here.
+        // Semantics should be inline with C# double here.
         match x with
         | BigFloat.NaN -> raise (ArithmeticException "NaN has no sign.")
         | BigFloat.PosInf -> 1
         | BigFloat.NegInf -> -1
         | BigFloat.Finite (m, _) when m = 0.0 -> 0
-        | BigFloat.Finite (m, _) when m = -0.0 -> 0
         | BigFloat.Finite (m, _) ->
             if m < 0.0
             then -1
@@ -346,6 +361,7 @@ module BigFloat =
         
         Finite (m, e)
         
+    // For all Finite(m, e), either m = 0.0 or 1.0 <= |m| < 10.0.        
     let private normalize x =
         match x with        
         | Finite (mantissa, _)

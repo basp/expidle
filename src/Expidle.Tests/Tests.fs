@@ -19,6 +19,22 @@ let private posInf = BigFloat.Create(Double.PositiveInfinity, 0)
 let private nan = BigFloat.Create(Double.NaN, 0)
 
 [<Fact>]
+let ``add 2.0 + 3.0 = 5.0`` () =
+    let a = BigFloat.ofFloat 2.0
+    let b = BigFloat.ofFloat 3.0
+    let c = BigFloat.add a b
+    let r = c = (BigFloat.ofFloat 5.0)
+    Assert.True(r)
+
+[<Fact>]
+let ``add -2.0 + 3.0 = 1.0`` () =
+    let a = BigFloat.ofFloat -2.0
+    let b = BigFloat.ofFloat 3.0
+    let c = BigFloat.add a b
+    let r = c = (BigFloat.ofFloat 1.0)
+    Assert.True(r)
+
+[<Fact>]
 let ``isNonNegative respects infinite sign`` () =
     let a = posInf + BigFloat.ofFloat 0.0
     let b = negInf + nan
@@ -95,6 +111,12 @@ let ``Ordering places NegInf lowest and PosInf above all finite`` () =
     Assert.True((negInf :> IComparable<BigFloat>).CompareTo(finite) < 0)
     Assert.True((finite :> IComparable<BigFloat>).CompareTo(posInf) < 0)
     Assert.True((negInf :> IComparable<BigFloat>).CompareTo(posInf) < 0)
+
+[<Fact>]
+let ``add aligns exponents correctly`` () =
+    let a = BigFloat.Create(1.0, 3)   // 1000
+    let b = BigFloat.Create(1.0, 0)   // 1
+    Assert.True((a + b) = BigFloat.Create(1.001, 3))
 
 [<Fact>]
 let ``ofFloat 0.0 produces +0.0`` () =
