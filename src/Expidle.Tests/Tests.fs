@@ -43,7 +43,7 @@ let ``F# equality operator considers NaNs equal`` () =
     Assert.True(r)
 
 [<Fact>]
-let ``neagtive zero and zero have same hash codes`` () =
+let ``negative zero and zero have same hash codes`` () =
     let a = BigFloat.Create(-0.0, 0)
     let b = BigFloat.Create(0.0, 0)
     let c = BigFloat.Create(1.0, 0)
@@ -51,6 +51,13 @@ let ``neagtive zero and zero have same hash codes`` () =
     Assert.Equal(hash b, hash a)
     // Sanity check to make sure hash codes differ when relevant.
     Assert.NotEqual(hash a, hash c)
+    
+[<Fact>]
+let ``CompareTo orders negative finite before positive finite`` () =
+    let neg = BigFloat.Create(-1.0, 0)
+    let pos = BigFloat.Create(1.0, 0)
+    Assert.True(((neg :> IComparable<BigFloat>).CompareTo(pos)) < 0)
+    Assert.True(((pos :> IComparable<BigFloat>).CompareTo(neg)) > 0)    
     
 [<Fact>]
 let ``CompareTo treats NaNs as greatest and NaN compares equal to NaN`` () =

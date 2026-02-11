@@ -64,7 +64,7 @@ type [<Struct; CustomEquality; CustomComparison>] BigFloat =
                 let xNeg = xm < 0.0
                 let yNeg = ym < 0.0
                 if xNeg <> yNeg then
-                    if yNeg then -1
+                    if xNeg then -1
                     else 1
                 else
                     // Both positive or both negative.
