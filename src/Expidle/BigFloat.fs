@@ -135,6 +135,9 @@ type [<Struct; CustomEquality; CustomComparison>] BigFloat =
 module BigFloatUtils =
     open System
 
+    let inline signBitNegative (x: float) =
+        Double.IsNegative(x)
+    
     let inline internal addClassify (a: BigFloat) (b: BigFloat) =
         match a, b with
         | NaN, _ -> Choice1Of2 NaN
@@ -149,8 +152,6 @@ module BigFloatUtils =
             Choice2Of2 (struct (am, ae, bm, be))
     
     let inline internal mulClassify (a: BigFloat) (b: BigFloat) =
-        let inline signBitNegative (x: float) = Double.IsNegative(x)
-        
         let inline infTimesFinite (infIsNegative: bool) (m: float) =
             let isNegative = infIsNegative <> signBitNegative m
             if isNegative then Choice1Of2 NegInf
@@ -180,9 +181,7 @@ module BigFloatUtils =
         | Finite (am, ae), Finite (bm, be) ->
             Choice2Of2 (struct (am, ae, bm, be))
 
-    let inline internal divClassify (a: BigFloat) (b: BigFloat) =
-        let inline signBitNegative (x: float) = Double.IsNegative(x)
-        
+    let inline internal divClassify (a: BigFloat) (b: BigFloat) =        
         let inline signedInf (negative: bool) =
             if negative then Choice1Of2 NegInf
             else Choice1Of2 PosInf
@@ -224,28 +223,49 @@ module BigFloatUtils =
         | Finite (am, ae), Finite (bm, be) ->
             Choice2Of2 (struct (am, ae, bm, be))
         
-module BigFloat =   
+module BigFloat =
     open System
     
     let zero = Finite(0.0, 0)
+    
     let negZero = Finite(-0.0, 0)
+    
     let one = Finite(1.0, 0)
     
-    let exponentGapCutoff = 16
+    let isZero (x: BigFloat) =
+        match x with
+        | Finite (m, _) when m = 0.0 -> true
+        | _ -> false
     
-    let private isFinite (v: float) =
-        not (Double.IsNaN v) && not (Double.IsInfinity v)    
-
-    let private isNaN = Double.IsNaN
-    let private isPosInf = Double.IsPositiveInfinity
-    let private isNegInf = Double.IsNegativeInfinity
-    let private isNegZero x = x = 0.0 && Double.IsNegative x
-    let private isPosZero x = x = 0.0 && Double.IsPositive x
-    
-    let private zeroOf m =
-        if isNegZero m then negZero
-        else zero
+    let sign (x: BigFloat) =
+        match x with
+        | BigFloat.NaN -> 0
+        | BigFloat.PosInf -> 1
+        | BigFloat.NegInf -> -1
+        | BigFloat.Finite (m, _) ->
+            if m < 0.0
+            then -1
+            else 1
+    module Utils =
+        let isFiniteFloat (v: float) =
+            not (Double.IsNaN v) && not (Double.IsInfinity v)
         
+        let isNaNFloat = Double.IsNaN
+        
+        let isPosInfFloat = Double.IsPositiveInfinity
+        
+        let isNegInfFloat = Double.IsNegativeInfinity
+        
+        let isNegZeroFloat x = x = 0.0 && Double.IsNegative x
+        
+        let isPosZeroFloat x = x = 0.0 && Double.IsPositive x
+        
+        let zeroOf m =
+            if isNegZeroFloat m then negZero
+            else zero
+        
+    let private exponentGapCutoff = 16
+    
     let private normalizeFinite (mantissa: float, exponent: int) =
         let mutable m = mantissa
         let mutable e = exponent
@@ -282,27 +302,27 @@ module BigFloat =
         match x with        
         | Finite (mantissa, _)
             when mantissa = 0.0 ->
-            zeroOf mantissa
+            Utils.zeroOf mantissa
         | Finite (mantissa, _)
-            when isNegInf mantissa ->
+            when Utils.isNegInfFloat mantissa ->
             NegInf
         | Finite (mantissa, _)
-            when isPosInf mantissa ->            
+            when Utils.isPosInfFloat mantissa ->            
             PosInf
         | Finite (mantissa, _)
-            when isNaN mantissa ->
+            when Utils.isNaNFloat mantissa ->
             NaN
         | Finite (mantissa, exponent)
-            when (isFinite mantissa) ->
+            when (Utils.isFiniteFloat mantissa) ->
             normalizeFinite (mantissa, exponent)
         | nonFinite -> nonFinite
 
     let init m e =
         match m with
-        | m when isNaN m -> NaN
-        | m when isPosInf m -> PosInf
-        | m when isNegInf m -> NegInf
-        | m when m = 0.0 -> zeroOf m
+        | m when Utils.isNaNFloat m -> NaN
+        | m when Utils.isPosInfFloat m -> PosInf
+        | m when Utils.isNegInfFloat m -> NegInf
+        | m when m = 0.0 -> Utils.zeroOf m
         | _ -> Finite(m, e) |> normalize
         
     let ofFloat x = init x 0        
@@ -332,6 +352,7 @@ module BigFloat =
                     else
                         let m = am * (10.0 ** float d) + bm
                         init m be
+                        
         match BigFloatUtils.addClassify a b with
         | Choice1Of2 special ->
             special
@@ -343,6 +364,7 @@ module BigFloat =
     let mul a b =
         let mulFinite (am, ae) (bm, be) =
             init (am * bm) (ae + be)
+            
         match BigFloatUtils.mulClassify a b with
         | Choice1Of2 special ->
             special
@@ -352,6 +374,7 @@ module BigFloat =
     let div a b =
         let divFinite (am, ae) (bm, be) =
             init (am / bm) (ae - be)
+            
         match BigFloatUtils.divClassify a b with
         | Choice1Of2 special ->
             normalize special
@@ -379,18 +402,29 @@ module BigFloat =
             | _ -> None
 
 type BigFloat with
-    static member Zero = BigFloat.zero
-    static member NegZero = BigFloat.negZero
-    static member One = BigFloat.one
+    static member Zero =
+        BigFloat.zero
+    
+    static member NegZero =
+        BigFloat.negZero
+    
+    static member One =
+        BigFloat.one
+    
     static member Create (mantissa: float, exponent: int) =
         BigFloat.init mantissa exponent
+    
     static member OfFloat (x: float) =
         BigFloat.ofFloat x
+    
     static member (+) (a, b) =
         BigFloat.add a b        
+    
     static member (-) (a, b) =
         BigFloat.sub a b
+    
     static member (*) (a, b) =
         BigFloat.mul a b
+    
     static member (/) (a, b) =
         BigFloat.div a b

@@ -5,6 +5,7 @@ open Xunit
 open Expidle
 open BigFloat.View
 
+// Some useful testing helpers.
 let private isNegZero (x: float) =
     x = 0.0 && Double.IsNegative x
 
@@ -12,7 +13,9 @@ let private isPosZero (x: float) =
     x = 0.0 && not (Double.IsNegative x)
 
 let private negInf = BigFloat.Create(Double.NegativeInfinity, 0)
+
 let private posInf = BigFloat.Create(Double.PositiveInfinity, 0)
+
 let private nan = BigFloat.Create(Double.NaN, 0)
 
 [<Fact>]
@@ -20,7 +23,7 @@ let ``Equals returns true for NaN`` () =
     Assert.True(nan.Equals(nan))
     // Sanity check to make sure the `=` operator behaves as expected.
     Assert.True((nan = nan))
-        
+
 [<Fact>]
 let ``op_Equality returns false for NaNs`` () =
     let a = BigFloat.Create(Double.NaN, 0)
@@ -51,14 +54,14 @@ let ``negative zero and zero have same hash codes`` () =
     Assert.Equal(hash b, hash a)
     // Sanity check to make sure hash codes differ when relevant.
     Assert.NotEqual(hash a, hash c)
-    
+
 [<Fact>]
 let ``CompareTo orders negative finite before positive finite`` () =
     let neg = BigFloat.Create(-1.0, 0)
     let pos = BigFloat.Create(1.0, 0)
-    Assert.True(((neg :> IComparable<BigFloat>).CompareTo(pos)) < 0)
-    Assert.True(((pos :> IComparable<BigFloat>).CompareTo(neg)) > 0)    
-    
+    Assert.True((neg :> IComparable<BigFloat>).CompareTo(pos) < 0)
+    Assert.True((pos :> IComparable<BigFloat>).CompareTo(neg) > 0)
+
 [<Fact>]
 let ``CompareTo treats NaNs as greatest and NaN compares equal to NaN`` () =
     let a = BigFloat.Create(Double.NaN, 0)
@@ -66,8 +69,8 @@ let ``CompareTo treats NaNs as greatest and NaN compares equal to NaN`` () =
     Assert.Equal(0, (a :> IComparable<BigFloat>).CompareTo(b))
 
     let one = BigFloat.Create(1.0, 0)
-    Assert.True(((a :> IComparable<BigFloat>).CompareTo(one)) > 0)
-    Assert.True(((one :> IComparable<BigFloat>).CompareTo(a)) < 0)
+    Assert.True((a :> IComparable<BigFloat>).CompareTo(one) > 0)
+    Assert.True((one :> IComparable<BigFloat>).CompareTo(a) < 0)
 
 [<Fact>]
 let ``CompareTo treats -0.0 and +0.0 as equal`` () =
@@ -82,20 +85,20 @@ let ``Ordering places NegInf lowest and PosInf above all finite`` () =
     let posInf = BigFloat.Create(Double.PositiveInfinity, 0)
     let finite = BigFloat.Create(9.0, 9)
 
-    Assert.True(((negInf :> IComparable<BigFloat>).CompareTo(finite)) < 0)
-    Assert.True(((finite :> IComparable<BigFloat>).CompareTo(posInf)) < 0)
-    Assert.True(((negInf :> IComparable<BigFloat>).CompareTo(posInf)) < 0)    
-    
+    Assert.True((negInf :> IComparable<BigFloat>).CompareTo(finite) < 0)
+    Assert.True((finite :> IComparable<BigFloat>).CompareTo(posInf) < 0)
+    Assert.True((negInf :> IComparable<BigFloat>).CompareTo(posInf) < 0)
+
 [<Fact>]
 let ``ofFloat 0.0 produces +0.0`` () =
-    match BigFloat.ofFloat 0.0 with    
+    match BigFloat.ofFloat 0.0 with
     | Finite (m, e) ->
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
         Assert.Fail($"Expected positive zero, got %A{x}")
 
-[<Fact>]        
+[<Fact>]
 let ``init -0.0 preserves negative zero`` () =
     match BigFloat.Create(-0.0, 123) with
     | Finite (m, e) ->
@@ -103,7 +106,7 @@ let ``init -0.0 preserves negative zero`` () =
         Assert.Equal(0, e)
     | x ->
         Assert.Fail($"Expected negative zero, got %A{x}")
-        
+
 [<Fact>]
 let ``add handles opposite infinities as NaN`` () =
     let r1 = BigFloat.add posInf negInf
@@ -364,11 +367,11 @@ let ``div 0.0 by 0.0 is NaN (both signs)`` () =
     Assert.Equal<BigFloat>(nan, BigFloat.div negZero posZero)
     Assert.Equal<BigFloat>(nan, BigFloat.div negZero negZero)
 
-[<Fact>]      
+[<Fact>]
 let ``Create normalizes mantissa and adjusts exponent`` () =
     Assert.Equal<BigFloat>(BigFloat.Create(1.23, 1), BigFloat.Create(12.3, 0))
     Assert.Equal<BigFloat>(BigFloat.Create(1.23, -1), BigFloat.Create(0.123, 0))
-      
+
 [<Fact>]
 let ``Create normalizes very small finite values and stays finite`` () =
     // This used to be a risk area when normalization relied on 10.0 ** e with e ~ -323/-324
@@ -382,7 +385,7 @@ let ``Create normalizes very small finite values and stays finite`` () =
         Assert.True(e <= -320) // allow a little leeway due to subnormal representation
     | _ ->
         failwithf $"Expected Finite, got %A{x}"
-        
+
 [<Fact>]
 let ``Create normalizes subnormal values and stays finite`` () =
     // Use the smallest positive subnormal double.
