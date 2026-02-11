@@ -19,6 +19,13 @@ let private posInf = BigFloat.Create(Double.PositiveInfinity, 0)
 let private nan = BigFloat.Create(Double.NaN, 0)
 
 [<Fact>]
+let ``isNonNegative respects infinite sign`` () =
+    let a = posInf + BigFloat.ofFloat 0.0
+    let b = negInf + nan
+    Assert.True(BigFloat.isNonNegative a)
+    Assert.False(BigFloat.isNonNegative b)
+    
+[<Fact>]
 let ``Equals returns true for NaN`` () =
     Assert.True(nan.Equals(nan))
     // Sanity check to make sure the `=` operator behaves as expected.
@@ -199,7 +206,7 @@ let ``add -0.0 + -0.0 = -0.0`` () =
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected negative zero, got %A{x}"
+        Assert.Fail($"Expected negative zero, got %A{x}")
 
 [<Fact>]
 let ``add respects exponent-gap cutoff behavior`` () =
@@ -219,7 +226,7 @@ let ``sub +0.0 - +0.0 = +0.0`` () =
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected positive zero, got %A{x}"
+        Assert.Fail($"Expected positive zero, got %A{x}")
 
 [<Fact>]
 let ``sub +0.0 - -0.0 = +0.0`` () =
@@ -230,7 +237,7 @@ let ``sub +0.0 - -0.0 = +0.0`` () =
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected positive zero, got %A{x}"
+        Assert.Fail($"Expected positive zero, got %A{x}")
 
 [<Fact>]
 let ``sub -0.0 - +0.0 = -0.0`` () =
@@ -241,7 +248,7 @@ let ``sub -0.0 - +0.0 = -0.0`` () =
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected negative zero, got %A{x}"
+        Assert.Fail($"Expected negative zero, got %A{x}")
 
 [<Fact>]
 let ``sub -0.0 - -0.0 = +0.0`` () =
@@ -252,7 +259,7 @@ let ``sub -0.0 - -0.0 = +0.0`` () =
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected positive zero, got %A{x}"
+        Assert.Fail($"Expected positive zero, got %A{x}")
 
 [<Fact>]
 let ``div with NaN produces NaN`` () =
@@ -292,14 +299,14 @@ let ``div 0.0 by finite preserves signed zero`` () =
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected +0.0, got %A{x}"
+        Assert.Fail($"Expected +0.0, got %A{x}")
 
     match BigFloat.div negZero (BigFloat.Create(5.0, 0)) with
     | Finite (m, e) ->
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected -0.0, got %A{x}"
+        Assert.Fail($"Expected -0.0, got %A{x}")
 
 [<Fact>]
 let ``div 0.0 by -finite flips signed zero`` () =
@@ -311,14 +318,14 @@ let ``div 0.0 by -finite flips signed zero`` () =
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected -0.0, got %A{x}"
+        Assert.Fail($"Expected -0.0, got %A{x}")
 
     match BigFloat.div negZero (BigFloat.Create(-5.0, 0)) with
     | Finite (m, e) ->
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected +0.0, got %A{x}"
+        Assert.Fail($"Expected +0.0, got %A{x}")
 
 [<Fact>]
 let ``div finite by infinity yields signed zero`` () =
@@ -327,28 +334,28 @@ let ``div finite by infinity yields signed zero`` () =
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected +0.0, got %A{x}"
+        Assert.Fail($"Expected +0.0, got %A{x}")
 
     match BigFloat.div (BigFloat.Create(-5.0, 0)) posInf with
     | Finite (m, e) ->
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected -0.0, got %A{x}"
+        Assert.Fail($"Expected -0.0, got %A{x}")
 
     match BigFloat.div (BigFloat.Create(5.0, 0)) negInf with
     | Finite (m, e) ->
         Assert.True(isNegZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected -0.0, got %A{x}"
+        Assert.Fail($"Expected -0.0, got %A{x}")
 
     match BigFloat.div (BigFloat.Create(-5.0, 0)) negInf with
     | Finite (m, e) ->
         Assert.True(isPosZero m)
         Assert.Equal(0, e)
     | x ->
-        failwithf $"Expected +0.0, got %A{x}"
+        Assert.Fail($"Expected +0.0, got %A{x}")
 
 [<Fact>]
 let ``div infinity by finite produces signed infinity`` () =
@@ -384,7 +391,7 @@ let ``Create normalizes very small finite values and stays finite`` () =
         Assert.True(abs m >= 1.0 && abs m < 10.0)
         Assert.True(e <= -320) // allow a little leeway due to subnormal representation
     | _ ->
-        failwithf $"Expected Finite, got %A{x}"
+        Assert.True(false, $"Expected Finite, got %A{x}")
 
 [<Fact>]
 let ``Create normalizes subnormal values and stays finite`` () =
@@ -400,7 +407,7 @@ let ``Create normalizes subnormal values and stays finite`` () =
         // The exact exponent depends on how many scalings were needed; it should be very negative.
         Assert.True(e < -300)
     | _ ->
-        failwithf $"Expected Finite, got %A{x}"
+        Assert.True(false, $"Expected Finite, got %A{x}")
         
 [<Fact>]
 let ``sign semantics`` () =
