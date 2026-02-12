@@ -111,10 +111,8 @@ let rt0 = {
     Trace = []
 }
 
-// Print the queue (remaining instructions, in this case, the program).
-printfn $"%A{rt0.Queue}"
 
-// First step.
+// Evaluate a few steps and print the trace. 
 let rt1 = step rt0
 let rt2 = step rt1
 let rt3 = step rt2
