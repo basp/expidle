@@ -1,4 +1,6 @@
-﻿type JoyValue =
+﻿open System.Collections
+
+type JoyValue =
     | Bool of bool
     | Int of int
     | String of string
@@ -25,75 +27,109 @@ and JoyDefinition =
     | Builtin of Builtin
     | Defined of JoyValue list
     
-and Builtin = Runtime -> Runtime
+and Builtin = Runtime -> Result<Runtime, JoyError>
+
+and JoyError =
+    | StackUnderflow
+    | TypeMismatch of expected: string * actual: JoyValue
+    | UndefinedSymbol of string
+    | InvalidQuotation of JoyValue
 
 module Builtins =
-    let dup rt =
-        let newStack =
-            match rt.Stack with
-            | x :: xs -> x :: x :: xs
-            | _ -> failwith "dup: stack underflow"
-        { rt with Stack = newStack }
+    let dup rt : Result<Runtime, JoyError> =
+        match rt.Stack with
+        | x :: xs ->
+            Ok { rt with Stack = x :: x :: xs }
+        | _ ->
+            Error StackUnderflow
     
     let swap rt =
-        let newStack = 
-            match rt.Stack with
-            | x :: y :: xs -> y :: x :: xs
-            | _ -> failwith "swap: stack underflow"
-        { rt with Stack = newStack }
+        match rt.Stack with
+        | x :: y :: xs ->
+            Ok { rt with Stack = y :: x :: xs }
+        | _ -> Error StackUnderflow
         
     let pop rt =
-        let newStack = 
-            match rt.Stack with
-            | _ :: xs -> xs
-            | _ -> failwith "pop: stack underflow"
-        { rt with Stack = newStack }
+        match rt.Stack with
+        | _ :: xs ->
+            Ok { rt with Stack = xs }
+        | _ -> Error StackUnderflow
             
-    let i rt =
+    let i rt =        
         match rt.Stack with
         | Quotation q :: xs ->
-            { rt with
-                Stack = xs;
-                Queue = q @ rt.Queue }
-        | _ -> failwith "i: expect quotation"
+            Ok { rt with Stack = xs; Queue = q @ rt.Queue }
+        | _ ->
+            Error (InvalidQuotation rt.Stack.Head)
 
-let step rt =
+let step (rt : Runtime) : Result<Runtime, JoyError * TraceEntry> =
     match rt.Queue with
-    | [] -> rt // nothing to do    
+    | [] ->
+        Ok rt
+
     | instr :: remainingQueue ->
         let stackBefore = rt.Stack
         let queueBefore = rt.Queue
-        
+
         let baseRt = { rt with Queue = remainingQueue }
-            
-        let (rtAfter, resolution) =
+
+        let resultAfter =
             match instr with
             | Int _
             | Bool _
             | String _
             | Quotation _ ->
-                { baseRt with Stack = instr :: stackBefore }, None
+                // Pushing a literal never fails.
+                Ok ({ baseRt with Stack = instr :: stackBefore }, None)
+
             | Symbol name ->
                 match rt.Env.TryFind name with
-                | None -> failwithf $"undefined symbol: %s{name}"
-                | Some (Builtin bi) ->
-                    let newRt = bi baseRt
-                    (newRt, Some (Builtin bi))
-                | Some (Defined def) ->
-                    let newRt = { baseRt with Stack = def @ stackBefore }
-                    (newRt, Some (Defined def))              
-        
-        let traceEntry = {
-            Instruction = instr
-            StackBefore = stackBefore
-            StackAfter = rtAfter.Stack
-            QueueBefore = queueBefore
-            QueueAfter = rtAfter.Queue
-            Resolution = resolution
-        }
+                | None ->
+                    Error (UndefinedSymbol name)
 
-        // TODO: Decide on trace order (latest first or oldest first?)        
-        { rtAfter with Trace = traceEntry :: rt.Trace }
+                | Some (Builtin bi) ->
+                    // bi : Runtime -> Result<Runtime, JoyError>
+                    bi baseRt
+                    |> Result.map (fun newRt ->
+                        (newRt, Some (Builtin bi)))
+
+                | Some (Defined def) ->
+                    // User-defined words expand into the queue
+                    let newRt =
+                        { baseRt with Queue = def @ baseRt.Queue }
+                    Ok (newRt, Some (Defined def))
+
+        match resultAfter with
+        | Error err ->
+            // Even on error, we still produce a trace entry
+            let traceEntry =
+                {
+                    Instruction = instr
+                    StackBefore = stackBefore
+                    StackAfter = rt.Stack      // unchanged
+                    QueueBefore = queueBefore
+                    QueueAfter = rt.Queue      // unchanged
+                    Resolution = None
+                }
+
+            Error (err, traceEntry)
+
+        | Ok (rtAfter, resolution) ->
+            let traceEntry =
+                {
+                    Instruction = instr
+                    StackBefore = stackBefore
+                    StackAfter = rtAfter.Stack
+                    QueueBefore = queueBefore
+                    QueueAfter = rtAfter.Queue
+                    Resolution = resolution
+                }
+
+            let rtFinal =
+                { rtAfter with Trace = traceEntry :: rt.Trace }
+
+            Ok rtFinal
+
 
 let env = Map.ofList [
     "dup", Builtin Builtins.dup
@@ -101,22 +137,3 @@ let env = Map.ofList [
     "pop", Builtin Builtins.pop
     "i", Builtin Builtins.i
 ]
-
-let p = [Int 1; Symbol "dup"; Int 2; Symbol "swap"]
-    
-let rt0 = {
-    Queue = p
-    Stack = []
-    Env = env
-    Trace = []
-}
-
-
-// Evaluate a few steps and print the trace. 
-let rt1 = step rt0
-let rt2 = step rt1
-let rt3 = step rt2
-let rt4 = step rt3
-let rt5 = step rt4
-
-printfn $"%A{rt5.Trace}"
