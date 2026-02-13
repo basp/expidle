@@ -8,8 +8,9 @@
   <ItemGroup>
     <Compile Include="BigFloat.fs" />
     <None Include="Sandbox.fsx" />
-    <Compile Include="Program.fs" />
     <None Include="Joy.fsx" />
+    <Compile Include="ToyJoy.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
 
 </Project>
