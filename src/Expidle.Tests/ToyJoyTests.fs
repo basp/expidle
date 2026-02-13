@@ -11,7 +11,7 @@ let testRuntime = {
 }
 
 [<Fact>]
-let ``literal pushing`` () =
+let ``int literals are pushed onto the stack`` () =
     let rt0 = { testRuntime with Queue = [Int 1] }
     match step rt0 with
     | Ok rt1 ->
@@ -23,7 +23,7 @@ let ``literal pushing`` () =
         Assert.Fail(x.ToString())
 
 [<Fact>]
-let ``dup`` () =
+let ``dup should duplicate value on top of stack`` () =
     let r0 = { testRuntime with Queue = [Int 1; Symbol "dup"] }
     let r1 = r0 |> step |> Result.bind step
     match r1 with
